@@ -124,7 +124,10 @@
   .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: .3; }
 
   select option { background: #18181f; }
+  .btn-export { display: flex; align-items: center; justify-content: center; gap: 8px; width: calc(100% - 32px); margin: 0 16px 12px; padding: 14px; background: linear-gradient(135deg, #1a3a1a, #1e4d1e); border: 1px solid #2d6a2d; border-radius: var(--radius-sm); color: var(--success); font-size: 14px; font-weight: 600; font-family: 'DM Sans', sans-serif; cursor: pointer; transition: opacity .2s; }
+  .btn-export:active { opacity: .7; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -149,6 +152,10 @@
     <div class="card-header"><h3>Por categoria</h3></div>
     <div class="card-body" id="cat-list"></div>
   </div>
+  <button class="btn-export" onclick="exportXLSX()">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z"/></svg>
+    Exportar Planilha Excel
+  </button>
 </div>
 
 <!-- PAGE: LANÇAMENTOS -->
@@ -645,6 +652,172 @@ function deleteItem(id) {
   saveItems(items);
   renderResumo();
   renderExtrato();
+}
+
+// ═══════════════════════════════════════════
+// EXPORT XLSX
+// ═══════════════════════════════════════════
+function exportXLSX() {
+  const wb = XLSX.utils.book_new();
+  const MONTHS = ['Mar/2026','Abr/2026','Mai/2026','Jun/2026','Jul/2026','Ago/2026','Set/2026','Out/2026','Nov/2026','Dez/2026','Jan/2027'];
+
+  // ── helpers ──
+  function brl(v) {
+    if (v === null || v === undefined || v === '') return '';
+    return parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function hdr(label, color) {
+    return { v: label, t: 's', s: { font:{bold:true,color:{rgb:'FFFFFF'},name:'Arial',sz:10}, fill:{fgColor:{rgb:color}}, alignment:{horizontal:'center',vertical:'center',wrapText:true}, border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}} } };
+  }
+  function cell(v, bold, fillRgb, color, center, italic) {
+    const s = {
+      font: {bold:!!bold, name:'Arial', sz:10, color:{rgb: color||'000000'}, italic:!!italic},
+      fill: fillRgb ? {fgColor:{rgb:fillRgb}} : {fgColor:{rgb:'FFFFFF'}},
+      alignment: {horizontal: center?'center':'left', vertical:'center', wrapText:true},
+      border: {top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}
+    };
+    return { v: v===null||v===undefined?'':v, t: typeof v==='number'?'n':'s', s };
+  }
+  function numCell(v, bold, fillRgb, colorRgb) {
+    return { v: typeof v==='number'?v:0, t:'n', s:{
+      font:{bold:!!bold,name:'Arial',sz:10,color:{rgb:colorRgb||'000000'}},
+      fill: fillRgb?{fgColor:{rgb:fillRgb}}:{fgColor:{rgb:'FFFFFF'}},
+      alignment:{horizontal:'right',vertical:'center'},
+      numFmt:'R$ #,##0.00',
+      border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}
+    }};
+  }
+
+  const CARTAO_FILLS = { 'MAGALU':'1A5276','SANTANDER':'7B241C','AZUL ITAÚ':'1E8449','RENNER':'784212' };
+  const CARTAO_ROW_FILLS = { 'MAGALU':'D6EAF8','SANTANDER':'FDECEA','AZUL ITAÚ':'D5F5E3','RENNER':'FAF0E0' };
+  const CARTAO_ROW_ALT = { 'MAGALU':'EBF5FB','SANTANDER':'FDEDEC','AZUL ITAÚ':'EAFAF1','RENNER':'FEF9F0' };
+
+  // ══════════════════════════════════
+  // ABA 1 — VISAO COMPLETA
+  // ══════════════════════════════════
+  const wsData = [];
+  const colWidths = [13,28,11,16,12,22,...MONTHS.map(()=>13),18];
+
+  // Title row
+  wsData.push([hdr('CONTROLE DE FATURAS — VISÃO COMPLETA (Mar/2026–Jan/2027)','1F4E79')]);
+  wsData.push([hdr('CARTÃO','2E75B6'), hdr('ESTABELECIMENTO','2E75B6'), hdr('PARCELA','2E75B6'), hdr('VALOR/PARC (R$)','2E75B6'), hdr('TIPO','2E75B6'), hdr('CATEGORIA','2E75B6'), ...MONTHS.map(m=>hdr(m,'2E75B6')), hdr('TOTAL RESTANTE (R$)','2E75B6')]);
+
+  const subtotals = {};
+  const cartaoOrder = ['MAGALU','SANTANDER','AZUL ITAÚ','RENNER'];
+
+  cartaoOrder.forEach(cartao => {
+    const fill = CARTAO_FILLS[cartao] || '444444';
+    const rowFill = CARTAO_ROW_FILLS[cartao] || 'FFFFFF';
+    const rowAlt  = CARTAO_ROW_ALT[cartao]  || 'F5F5F5';
+    wsData.push([hdr(`▶  ${cartao}`,''+fill)]);
+    const cartaoItems = items.filter(i => i.cartao === cartao);
+    let rowIdx = 0;
+    cartaoItems.forEach(item => {
+      const f = rowIdx%2===0 ? rowFill : rowAlt;
+      const parcStr = item.tipo==='parcelado' ? `${item.parcAtual}/${item.parcTotal}` : item.tipo==='recorrente' ? 'Recorrente' : '1/1';
+      const monthVals = MONTHS.map((_,mi) => getValueInMonth(item, mi));
+      const total = monthVals.reduce((s,v)=>s+v,0);
+      const tipoColor = item.tipo==='parcelado'?'1A5276':item.tipo==='recorrente'?'6C3483':'595959';
+      wsData.push([
+        cell(cartao, true, f, '000000', true),
+        cell(item.estab, false, f),
+        cell(parcStr, false, f, '000000', true),
+        numCell(item.valor, false, f),
+        cell(item.tipo==='avista'?'À vista':item.tipo==='recorrente'?'Recorrente':'Parcelado', false, f, tipoColor, true, item.tipo==='avista'),
+        cell(item.cat||'—', false, f, '444444', true, true),
+        ...monthVals.map(v => v===0 ? cell('-',false,f,'CCCCCC',true) : numCell(v,false,f)),
+        numCell(total, true, f)
+      ]);
+      rowIdx++;
+    });
+    // subtotal row
+    const subVals = MONTHS.map((_,mi) => cartaoItems.reduce((s,it)=>s+getValueInMonth(it,mi),0));
+    const subTotal = subVals.reduce((s,v)=>s+v,0);
+    subtotals[cartao] = {vals:subVals, total:subTotal};
+    wsData.push([
+      hdr(`SUBTOTAL ${cartao}`, fill),
+      cell('','',fill,'',true),cell('','',fill,'',true),cell('','',fill,'',true),cell('','',fill,'',true),cell('','',fill,'',true),
+      ...subVals.map(v=>numCell(v,true,fill,'FFFFFF')),
+      numCell(subTotal,true,'145A32','FFFFFF')
+    ]);
+    wsData.push([cell('')]);
+  });
+
+  // TOTAL GERAL row
+  const totalVals = MONTHS.map((_,mi) => cartaoOrder.reduce((s,c)=>s+(subtotals[c]?.vals[mi]||0),0));
+  const totalTotal = totalVals.reduce((s,v)=>s+v,0);
+  wsData.push([
+    hdr('▶  TOTAL GERAL (MAGALU + SANTANDER + AZUL ITAÚ + RENNER)','1F4E79'),
+    cell('','','1F4E79'),cell('','','1F4E79'),cell('','','1F4E79'),cell('','','1F4E79'),cell('','','1F4E79'),
+    ...totalVals.map(v=>({v,t:'n',s:{font:{bold:true,name:'Arial',sz:10,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F4E79'}},alignment:{horizontal:'right',vertical:'center'},numFmt:'R$ #,##0.00',border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}}})),
+    numCell(totalTotal,true,'145A32','FFFFFF')
+  ]);
+
+  const ws1 = XLSX.utils.aoa_to_sheet(wsData);
+  ws1['!cols'] = colWidths.map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Visao Completa');
+
+  // ══════════════════════════════════
+  // ABA 2 — CONTA
+  // ══════════════════════════════════
+  const contaData = [];
+  contaData.push([hdr('CONTA – GASTOS MENSAIS FIXOS (SEM CARTÃO)','1F4E79')]);
+  contaData.push([hdr('Descrição','2E75B6'), hdr('Valor Mensal (R$)','2E75B6'), hdr('Categoria','2E75B6'), hdr('Obs.','2E75B6')]);
+  const catFills = {'Financiamento':'FCE4D6','Serviços':'DDEBF7','Casa':'E2EFDA','Lazer':'EAD1DC','Saúde / Bem-estar':'EAD1F7'};
+  CONTA_FIXA.forEach((c,i) => {
+    const f = catFills[c.cat]||'FFFFFF';
+    contaData.push([
+      cell(c.nome,false,f),
+      numCell(c.valor,false,f),
+      cell(c.cat,false,f,'595959',false,true),
+      cell(c.variavel?'Variável':'Recorrente',false,f,c.variavel?'7D3C98':'1E8449',true)
+    ]);
+  });
+  const contaTotal2 = CONTA_FIXA.reduce((s,c)=>s+c.valor,0);
+  contaData.push([hdr('TOTAL MENSAL','1F4E79'), numCell(contaTotal2,true,'145A32','FFFFFF'), cell('','','1F4E79'), cell('','','1F4E79')]);
+  const ws2 = XLSX.utils.aoa_to_sheet(contaData);
+  ws2['!cols'] = [{wch:22},{wch:20},{wch:26},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'CONTA');
+
+  // ══════════════════════════════════
+  // ABA 3 — RESUMO MENSAL
+  // ══════════════════════════════════
+  const resData = [];
+  resData.push([hdr('RESUMO MENSAL – TOTAL DE GASTOS (CARTÕES + CONTA FIXA)','1F4E79')]);
+  resData.push([hdr('ORIGEM','2E75B6'), ...MONTHS.map(m=>hdr(m,'2E75B6')), hdr('TOTAL GERAL (R$)','2E75B6')]);
+  const resColors = {'MAGALU':['D6E4F0','1A5276'],'SANTANDER':['FDECEA','922B21'],'AZUL ITAÚ':['D5F5E3','1E8449'],'RENNER':['F9EBD4','7D4B1E']};
+  cartaoOrder.forEach(cartao => {
+    const [rowFill, hdrFill] = resColors[cartao]||['FFFFFF','444444'];
+    const vals = subtotals[cartao]?.vals || MONTHS.map(()=>0);
+    const tot = subtotals[cartao]?.total || 0;
+    resData.push([
+      cell(`${cartao==='MAGALU'?'🔵':cartao==='SANTANDER'?'🔴':cartao==='AZUL ITAÚ'?'🟢':'🟤'} ${cartao}`,true,hdrFill,'FFFFFF'),
+      ...vals.map(v=>numCell(v,false,rowFill)),
+      numCell(tot,true,'E2EFDA')
+    ]);
+  });
+  // CONTA row
+  const contaVals = MONTHS.map(()=>contaTotal2);
+  resData.push([
+    cell('💳 CONTA FIXA',true,'1F4E79','FFFFFF'),
+    ...contaVals.map(v=>numCell(v,false,'DDEBF7')),
+    numCell(contaTotal2*MONTHS.length,true,'E2EFDA')
+  ]);
+  // TOTAL row
+  const grandVals = MONTHS.map((_,mi)=>totalVals[mi]+contaTotal2);
+  const grandTotal = grandVals.reduce((s,v)=>s+v,0);
+  resData.push([
+    hdr('▶  TOTAL GERAL','1F4E79'),
+    ...grandVals.map(v=>({v,t:'n',s:{font:{bold:true,name:'Arial',sz:10,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F4E79'}},alignment:{horizontal:'right',vertical:'center'},numFmt:'R$ #,##0.00',border:{top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}}})),
+    numCell(grandTotal,true,'145A32','FFFFFF')
+  ]);
+  const ws3 = XLSX.utils.aoa_to_sheet(resData);
+  ws3['!cols'] = [{wch:18},...MONTHS.map(()=>({wch:13})),{wch:18}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'RESUMO MENSAL');
+
+  // Download
+  const date = new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
+  XLSX.writeFile(wb, `controle_faturas_${date}.xlsx`);
 }
 
 // ═══════════════════════════════════════════
