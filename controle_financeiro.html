@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Controle Financeiro · Cinthia</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #18181f;
+    --surface2: #22222c;
+    --border: #2e2e3a;
+    --text: #f0eff6;
+    --muted: #7b7a8e;
+    --accent: #c9a96e;
+    --accent2: #8b6fcb;
+    --danger: #e06b6b;
+    --success: #6bc98a;
+    --mag: #4a9edd;
+    --san: #e06b6b;
+    --azu: #6bc98a;
+    --ren: #c9a96e;
+    --conta: #8b6fcb;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+  /* NAV */
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; padding: 12px 4px 10px; background: none; border: none; color: var(--muted); font-size: 10px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color .2s; }
+  nav button.active { color: var(--accent); }
+  nav button svg { width: 20px; height: 20px; }
+
+  /* HEADER */
+  .app-header { padding: 52px 20px 20px; background: linear-gradient(180deg, #1a1a24 0%, var(--bg) 100%); }
+  .app-header h1 { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--text); }
+  .app-header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  /* PAGES */
+  .page { display: none; padding: 0 0 90px; }
+  .page.active { display: block; }
+
+  /* CARDS */
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); margin: 0 16px 12px; overflow: hidden; }
+  .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .card-header h3 { font-size: 13px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+  .card-body { padding: 16px; }
+
+  /* RESUMO MENSAL */
+  .month-selector { display: flex; gap: 8px; overflow-x: auto; padding: 16px 16px 4px; scrollbar-width: none; }
+  .month-selector::-webkit-scrollbar { display: none; }
+  .month-btn { flex-shrink: 0; padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .2s; }
+  .month-btn.active { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 600; }
+
+  .total-hero { text-align: center; padding: 24px 16px 16px; }
+  .total-hero .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .total-hero .amount { font-family: 'DM Serif Display', serif; font-size: 42px; color: var(--text); margin: 6px 0 2px; }
+  .total-hero .sub { color: var(--muted); font-size: 12px; }
+
+  .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .breakdown-row:last-child { border-bottom: none; }
+  .breakdown-row .left { display: flex; align-items: center; gap: 10px; }
+  .breakdown-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .breakdown-row .name { font-size: 13px; color: var(--text); }
+  .breakdown-row .val { font-size: 13px; font-weight: 600; color: var(--text); }
+
+  /* LISTA DE LANÇAMENTOS */
+  .item-row { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; }
+  .item-row:last-child { border-bottom: none; }
+  .item-left .name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+  .item-left .meta { font-size: 11px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .tag-parc { background: #2a3a50; color: var(--mag); }
+  .tag-avista { background: #2a2a3a; color: var(--muted); }
+  .tag-rec { background: #2a2040; color: var(--accent2); }
+  .item-right { text-align: right; flex-shrink: 0; margin-left: 12px; }
+  .item-right .val { font-size: 14px; font-weight: 600; }
+  .item-right .parcela { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .section-label { padding: 12px 16px 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+
+  /* BADGE cartão */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+  .badge-mag { background: rgba(74,158,221,.15); color: var(--mag); }
+  .badge-san { background: rgba(224,107,107,.15); color: var(--san); }
+  .badge-azu { background: rgba(107,201,138,.15); color: var(--azu); }
+  .badge-ren { background: rgba(201,169,110,.15); color: var(--ren); }
+  .badge-conta { background: rgba(139,111,203,.15); color: var(--conta); }
+
+  /* FORMULÁRIO */
+  .form-wrap { padding: 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .form-group input, .form-group select { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; color: var(--text); font-size: 15px; font-family: 'DM Sans', sans-serif; outline: none; transition: border-color .2s; -webkit-appearance: none; }
+  .form-group input:focus, .form-group select:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tipo-toggle { display: flex; gap: 8px; }
+  .tipo-btn { flex: 1; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all .2s; text-align: center; }
+  .tipo-btn.active { border-color: var(--accent); background: rgba(201,169,110,.1); color: var(--accent); }
+  .parc-fields { display: none; }
+  .parc-fields.show { display: block; }
+  .btn-primary { width: 100%; padding: 16px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #000; font-size: 15px; font-weight: 700; font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 8px; transition: opacity .2s; }
+  .btn-primary:active { opacity: .8; }
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--success); color: #000; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .3s; pointer-events: none; z-index: 200; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* CONTA PAGE */
+  .conta-total { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--surface2); border-radius: var(--radius-sm); margin-bottom: 16px; }
+  .conta-total .label { font-size: 12px; color: var(--muted); }
+  .conta-total .val { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--accent); }
+
+  /* PROGRESS BAR */
+  .progress-wrap { margin: 0 16px 12px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: .3; }
+
+  select option { background: #18181f; }
+</style>
+</head>
+<body>
+
+<div class="app-header">
+  <h1>Controle Financeiro</h1>
+  <p id="header-month">Carregando...</p>
+</div>
+
+<!-- PAGE: RESUMO -->
+<div class="page active" id="page-resumo">
+  <div class="month-selector" id="month-selector"></div>
+  <div class="total-hero">
+    <div class="label">Total do mês</div>
+    <div class="amount" id="total-mes">R$ 0,00</div>
+    <div class="sub" id="total-sub">cartões + conta fixa</div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>Por cartão / origem</h3></div>
+    <div class="card-body" id="breakdown-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>Por categoria</h3></div>
+    <div class="card-body" id="cat-list"></div>
+  </div>
+</div>
+
+<!-- PAGE: LANÇAMENTOS -->
+<div class="page" id="page-lanc">
+  <div class="month-selector" id="month-selector-2"></div>
+  <div id="lanc-list"></div>
+</div>
+
+<!-- PAGE: NOVO -->
+<div class="page" id="page-novo">
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><h3>Nova Compra</h3></div>
+    <div class="form-wrap">
+      <div class="form-group">
+        <label>Cartão</label>
+        <select id="f-cartao">
+          <option value="MAGALU">Magalu</option>
+          <option value="SANTANDER">Santander</option>
+          <option value="AZUL ITAÚ">Azul Itaú</option>
+          <option value="RENNER">Renner</option>
+          <option value="CONTA">Conta (débito/pix)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Estabelecimento</label>
+        <input type="text" id="f-estab" placeholder="Ex: Shopee, iFood..." autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label>Categoria</label>
+        <select id="f-cat">
+          <option>Alimentação</option>
+          <option>Beleza / Estética</option>
+          <option>Casa / Outros</option>
+          <option>Compras Online</option>
+          <option>Educação / Cursos</option>
+          <option>Educação / Livros</option>
+          <option>Itens Casa</option>
+          <option>Lazer / Viagem</option>
+          <option>Moda / Vestuário</option>
+          <option>Pet</option>
+          <option>Saúde / Bem-estar</option>
+          <option>Saúde / Farmácia</option>
+          <option>Serviços</option>
+          <option>Streaming / Assinaturas</option>
+          <option>Tecnologia / Eletrônicos</option>
+          <option>Transporte</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <div class="tipo-toggle">
+          <div class="tipo-btn active" data-tipo="avista">À vista</div>
+          <div class="tipo-btn" data-tipo="parcelado">Parcelado</div>
+          <div class="tipo-btn" data-tipo="recorrente">Recorrente</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Valor da parcela (R$)</label>
+        <input type="number" id="f-valor" placeholder="0,00" step="0.01" inputmode="decimal">
+      </div>
+      <div class="parc-fields form-group" id="parc-fields">
+        <label>Parcelas</label>
+        <div class="form-row">
+          <div>
+            <input type="number" id="f-parc-atual" placeholder="Parcela atual" min="1">
+          </div>
+          <div>
+            <input type="number" id="f-parc-total" placeholder="Total parcelas" min="1">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Mês de início</label>
+        <select id="f-mes"></select>
+      </div>
+      <button class="btn-primary" id="btn-salvar">Salvar lançamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: CONTA -->
+<div class="page" id="page-conta">
+  <div style="padding: 16px 16px 0">
+    <div class="conta-total">
+      <div>
+        <div class="label">Total mensal fixo</div>
+        <div class="val" id="conta-total-val">R$ 0,00</div>
+      </div>
+      <svg width="32" height="32" fill="none" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="var(--accent)"/></svg>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>Gastos fixos mensais</h3></div>
+    <div id="conta-items"></div>
+  </div>
+</div>
+
+<nav>
+  <button class="active" onclick="goPage('resumo',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+    Resumo
+  </button>
+  <button onclick="goPage('lanc',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg>
+    Extrato
+  </button>
+  <button onclick="goPage('novo',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+    Novo
+  </button>
+  <button onclick="goPage('conta',this)">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+    Conta
+  </button>
+</nav>
+
+<div class="toast" id="toast">✓ Lançamento salvo!</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DADOS INICIAIS (faturas Mar/2026)
+// ═══════════════════════════════════════════
+const MONTHS = ['Mar/2026','Abr/2026','Mai/2026','Jun/2026','Jul/2026','Ago/2026','Set/2026','Out/2026','Nov/2026','Dez/2026','Jan/2027'];
+const MONTH_IDX = { 'Mar/2026':0,'Abr/2026':1,'Mai/2026':2,'Jun/2026':3,'Jul/2026':4,'Ago/2026':5,'Set/2026':6,'Out/2026':7,'Nov/2026':8,'Dez/2026':9,'Jan/2027':10 };
+
+const SEED = [
+  // MAGALU
+  {id:'s1',  cartao:'MAGALU',    estab:'SHOPEE *JGSPRODUTO',        cat:'Itens Casa',               tipo:'parcelado',  valor:16.84,  parcAtual:7,  parcTotal:12, mesInicio:'Mar/2026'},
+  {id:'s2',  cartao:'MAGALU',    estab:'SHOPEE *BolsasTopS',        cat:'Itens Casa',               tipo:'parcelado',  valor:11.49,  parcAtual:6,  parcTotal:7,  mesInicio:'Mar/2026'},
+  {id:'s3',  cartao:'MAGALU',    estab:'HOT BEACH OLIMPIA',         cat:'Lazer / Viagem',           tipo:'parcelado',  valor:55.00,  parcAtual:1,  parcTotal:4,  mesInicio:'Mar/2026'},
+  {id:'s4',  cartao:'MAGALU',    estab:'ANIMALIA PARKE COMME',      cat:'Lazer / Viagem',           tipo:'parcelado',  valor:58.80,  parcAtual:3,  parcTotal:5,  mesInicio:'Mar/2026'},
+  {id:'s5',  cartao:'MAGALU',    estab:'HTM*Lua Andrade',           cat:'Beleza / Estética',        tipo:'parcelado',  valor:12.01,  parcAtual:4,  parcTotal:10, mesInicio:'Mar/2026'},
+  {id:'s6',  cartao:'MAGALU',    estab:'DROGASIL 1209',             cat:'Saúde / Farmácia',         tipo:'avista',     valor:16.99,  mesInicio:'Mar/2026'},
+  {id:'s7',  cartao:'MAGALU',    estab:'APPLE.COM/BILL (crédito)',  cat:'Streaming / Assinaturas',  tipo:'avista',     valor:-9.95,  mesInicio:'Mar/2026'},
+  {id:'s8',  cartao:'MAGALU',    estab:'APPLE.COM/BILL',            cat:'Streaming / Assinaturas',  tipo:'avista',     valor:21.90,  mesInicio:'Mar/2026'},
+  {id:'s9',  cartao:'MAGALU',    estab:'MERCADO LIVRE',             cat:'Compras Online',           tipo:'avista',     valor:27.65,  mesInicio:'Mar/2026'},
+  {id:'s10', cartao:'MAGALU',    estab:'APPLE.COM/BILL',            cat:'Streaming / Assinaturas',  tipo:'recorrente', valor:59.90,  mesInicio:'Mar/2026', mesFim:'Dez/2026'},
+  // SANTANDER
+  {id:'s11', cartao:'SANTANDER', estab:'LOJAS G',                   cat:'Itens Casa',               tipo:'parcelado',  valor:32.17,  parcAtual:4,  parcTotal:5,  mesInicio:'Mar/2026'},
+  {id:'s12', cartao:'SANTANDER', estab:'AMAZON RETAIL BR CPI',      cat:'Compras Online',           tipo:'parcelado',  valor:12.47,  parcAtual:8,  parcTotal:10, mesInicio:'Mar/2026'},
+  {id:'s13', cartao:'SANTANDER', estab:'IFD*IFOOD COM AG',          cat:'Alimentação',              tipo:'parcelado',  valor:30.57,  parcAtual:2,  parcTotal:3,  mesInicio:'Mar/2026'},
+  {id:'s14', cartao:'SANTANDER', estab:'KIWIFY *CAPSULAIDR',        cat:'Educação / Cursos',        tipo:'parcelado',  valor:14.57,  parcAtual:1,  parcTotal:12, mesInicio:'Mar/2026'},
+  {id:'s15', cartao:'SANTANDER', estab:'ARAUJO - LOJA',             cat:'Saúde / Farmácia',         tipo:'avista',     valor:17.77,  mesInicio:'Mar/2026'},
+  {id:'s16', cartao:'SANTANDER', estab:'IFD*BR',                    cat:'Alimentação',              tipo:'avista',     valor:26.89,  mesInicio:'Mar/2026'},
+  {id:'s17', cartao:'SANTANDER', estab:'LIVRARIA LEITURA',          cat:'Educação / Livros',        tipo:'avista',     valor:70.50,  mesInicio:'Abr/2026'},
+  {id:'s18', cartao:'SANTANDER', estab:'LEITURINHA',                cat:'Educação / Livros',        tipo:'recorrente', valor:31.45,  mesInicio:'Mar/2026', mesFim:'Dez/2026'},
+  {id:'s19', cartao:'SANTANDER', estab:'HTM*BLACK SEM BUCHO',       cat:'Alimentação',              tipo:'recorrente', valor:39.13,  mesInicio:'Mar/2026', mesFim:'Dez/2026'},
+  // AZUL ITAÚ
+  {id:'s20', cartao:'AZUL ITAÚ', estab:'HOTMART*ACADEM',            cat:'Educação / Cursos',        tipo:'parcelado',  valor:38.17,  parcAtual:9,  parcTotal:12, mesInicio:'Mar/2026'},
+  {id:'s21', cartao:'AZUL ITAÚ', estab:'MERCADOLIVRE*T',            cat:'Tecnologia / Eletrônicos', tipo:'parcelado',  valor:147.74, parcAtual:6,  parcTotal:12, mesInicio:'Mar/2026'},
+  {id:'s22', cartao:'AZUL ITAÚ', estab:'JOSE LOPES DE',             cat:'Casa / Outros',            tipo:'parcelado',  valor:104.78, parcAtual:5,  parcTotal:10, mesInicio:'Mar/2026'},
+  {id:'s23', cartao:'AZUL ITAÚ', estab:'PG *MODERNA MO',            cat:'Casa / Outros',            tipo:'parcelado',  valor:94.47,  parcAtual:4,  parcTotal:8,  mesInicio:'Mar/2026'},
+  {id:'s24', cartao:'AZUL ITAÚ', estab:'LONELY COMERCI',            cat:'Moda / Vestuário',         tipo:'parcelado',  valor:40.43,  parcAtual:3,  parcTotal:5,  mesInicio:'Mar/2026'},
+  {id:'s25', cartao:'AZUL ITAÚ', estab:'MANU ARRASAUBE',            cat:'Beleza / Estética',        tipo:'parcelado',  valor:125.00, parcAtual:2,  parcTotal:2,  mesInicio:'Mar/2026'},
+  {id:'s26', cartao:'AZUL ITAÚ', estab:'AMAZON RETAIL',             cat:'Compras Online',           tipo:'parcelado',  valor:41.21,  parcAtual:2,  parcTotal:12, mesInicio:'Mar/2026'},
+  {id:'s27', cartao:'AZUL ITAÚ', estab:'JIM.COM JOSE L',            cat:'Casa / Outros',            tipo:'parcelado',  valor:147.00, parcAtual:2,  parcTotal:10, mesInicio:'Mar/2026'},
+  {id:'s28', cartao:'AZUL ITAÚ', estab:'Transporte 99',             cat:'Transporte',               tipo:'avista',     valor:86.88,  mesInicio:'Mar/2026'},
+  {id:'s29', cartao:'AZUL ITAÚ', estab:'Dan Inn Hotel',             cat:'Lazer / Viagem',           tipo:'avista',     valor:258.17, mesInicio:'Mar/2026'},
+  {id:'s30', cartao:'AZUL ITAÚ', estab:'MILON UBERLANDIA',          cat:'Moda / Vestuário',         tipo:'avista',     valor:91.80,  mesInicio:'Mar/2026'},
+  {id:'s31', cartao:'AZUL ITAÚ', estab:'GARDEN FITNESS',            cat:'Saúde / Bem-estar',        tipo:'avista',     valor:140.00, mesInicio:'Mar/2026'},
+  {id:'s32', cartao:'AZUL ITAÚ', estab:'Mensalidade Plano Azul',    cat:'Serviços',                 tipo:'recorrente', valor:35.00,  mesInicio:'Mar/2026', mesFim:'Dez/2026'},
+  {id:'s33', cartao:'AZUL ITAÚ', estab:'MEEP*PLAMEVPET',            cat:'Pet',                      tipo:'recorrente', valor:125.67, mesInicio:'Mar/2026', mesFim:'Dez/2026'},
+  // RENNER
+  {id:'s34', cartao:'RENNER',    estab:'LOJAS RENNER S.A',          cat:'Moda / Vestuário',         tipo:'parcelado',  valor:40.23,  parcAtual:5,  parcTotal:7,  mesInicio:'Mar/2026'},
+];
+
+const CONTA_FIXA = [
+  {nome:'Nubank n1',  valor:218.00,  cat:'Financiamento'},
+  {nome:'Nubank n2',  valor:397.00,  cat:'Financiamento'},
+  {nome:'Inter',      valor:259.40,  cat:'Financiamento'},
+  {nome:'Internet',   valor:109.00,  cat:'Serviços'},
+  {nome:'Tel Cinthia',valor:35.00,   cat:'Serviços'},
+  {nome:'Tel Silas',  valor:34.00,   cat:'Serviços'},
+  {nome:'Diarista',   valor:460.00,  cat:'Casa'},
+  {nome:'Morango',    valor:50.00,   cat:'Casa'},
+  {nome:'Spotify',    valor:12.90,   cat:'Lazer'},
+  {nome:'Ballet',     valor:168.00,  cat:'Saúde / Bem-estar', variavel:true},
+];
+
+const CARTAO_COLORS = {
+  'MAGALU':'#4a9edd','SANTANDER':'#e06b6b','AZUL ITAÚ':'#6bc98a','RENNER':'#c9a96e','CONTA':'#8b6fcb'
+};
+
+// ═══════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════
+function loadItems() {
+  try {
+    const raw = localStorage.getItem('cf_items');
+    if (raw) return JSON.parse(raw);
+  } catch(e){}
+  // Seed on first load
+  localStorage.setItem('cf_items', JSON.stringify(SEED));
+  return SEED;
+}
+function saveItems(items) {
+  localStorage.setItem('cf_items', JSON.stringify(items));
+}
+let items = loadItems();
+
+// ═══════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════
+function fmt(v) {
+  return 'R$ ' + Math.abs(v).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtSigned(v) {
+  const s = v < 0 ? '-' : '';
+  return s + fmt(v);
+}
+function getValueInMonth(item, monthIdx) {
+  const start = MONTH_IDX[item.mesInicio] ?? 0;
+  if (item.tipo === 'avista') {
+    return start === monthIdx ? item.valor : 0;
+  }
+  if (item.tipo === 'recorrente') {
+    const end = item.mesFim ? (MONTH_IDX[item.mesFim] ?? 10) : 10;
+    return (monthIdx >= start && monthIdx <= end) ? item.valor : 0;
+  }
+  if (item.tipo === 'parcelado') {
+    const remaining = item.parcTotal - item.parcAtual + 1;
+    const mIdx = monthIdx - start;
+    return (mIdx >= 0 && mIdx < remaining) ? item.valor : 0;
+  }
+  return 0;
+}
+function contaTotal() {
+  return CONTA_FIXA.reduce((s,c)=>s+c.valor,0);
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let currentMonth = 0; // Mar/2026
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function renderMonthSelectors() {
+  ['month-selector','month-selector-2'].forEach(id => {
+    const el = document.getElementById(id);
+    el.innerHTML = MONTHS.map((m,i)=>
+      `<button class="month-btn ${i===currentMonth?'active':''}" onclick="setMonth(${i},'${id}')">${m}</button>`
+    ).join('');
+  });
+}
+
+function setMonth(idx, sourceId) {
+  currentMonth = idx;
+  renderMonthSelectors();
+  renderResumo();
+  renderExtrato();
+}
+
+function renderResumo() {
+  // Total cartões
+  let totalCartoes = 0;
+  const byCartao = {};
+  const byCat = {};
+  items.forEach(item => {
+    const v = getValueInMonth(item, currentMonth);
+    if (v === 0) return;
+    totalCartoes += v;
+    byCartao[item.cartao] = (byCartao[item.cartao]||0) + v;
+    byCat[item.cat] = (byCat[item.cat]||0) + v;
+  });
+  const totalConta = contaTotal();
+  const totalGeral = totalCartoes + totalConta;
+
+  document.getElementById('total-mes').textContent = fmtSigned(totalGeral);
+  document.getElementById('header-month').textContent = MONTHS[currentMonth];
+
+  // Breakdown
+  const bl = document.getElementById('breakdown-list');
+  const entries = [
+    ...Object.entries(byCartao).sort((a,b)=>b[1]-a[1]),
+    ['CONTA', totalConta]
+  ];
+  bl.innerHTML = entries.map(([name,val])=>`
+    <div class="breakdown-row">
+      <div class="left">
+        <div class="breakdown-dot" style="background:${CARTAO_COLORS[name]||'#888'}"></div>
+        <span class="name">${name}</span>
+      </div>
+      <span class="val">${fmt(val)}</span>
+    </div>
+  `).join('');
+
+  // Categories
+  // merge conta cats
+  CONTA_FIXA.forEach(c => {
+    byCat[c.cat] = (byCat[c.cat]||0) + c.valor;
+  });
+  const catEntries = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  const cl = document.getElementById('cat-list');
+  cl.innerHTML = catEntries.map(([cat,val])=>`
+    <div class="breakdown-row">
+      <div class="left">
+        <div class="breakdown-dot" style="background:var(--accent2)"></div>
+        <span class="name">${cat}</span>
+      </div>
+      <span class="val">${fmt(val)}</span>
+    </div>
+  `).join('');
+}
+
+function renderExtrato() {
+  const container = document.getElementById('lanc-list');
+  const monthItems = items.filter(item => getValueInMonth(item, currentMonth) !== 0);
+  const groups = {};
+  monthItems.forEach(item => {
+    if (!groups[item.cartao]) groups[item.cartao] = [];
+    groups[item.cartao].push(item);
+  });
+
+  const cartaoOrder = ['MAGALU','SANTANDER','AZUL ITAÚ','RENNER'];
+  let html = '';
+  cartaoOrder.forEach(cartao => {
+    const g = groups[cartao];
+    if (!g || !g.length) return;
+    const badge = cartao.toLowerCase().replace(' ','').replace('ú','u').replace('â','a');
+    html += `<div class="section-label"><span class="badge badge-${badge==='azulitau'?'azu':badge==='renner'?'ren':badge}">${cartao}</span></div>`;
+    html += '<div class="card" style="margin:0 16px 12px">';
+    g.forEach(item => {
+      const v = getValueInMonth(item, currentMonth);
+      const tipoTag = item.tipo==='parcelado'
+        ? `<span class="tag tag-parc">${item.parcAtual}/${item.parcTotal}</span>`
+        : item.tipo==='recorrente'
+        ? `<span class="tag tag-rec">Recorrente</span>`
+        : `<span class="tag tag-avista">À vista</span>`;
+      html += `
+        <div class="item-row">
+          <div class="item-left">
+            <div class="name">${item.estab}</div>
+            <div class="meta">${tipoTag} <span style="color:var(--muted)">${item.cat}</span></div>
+          </div>
+          <div class="item-right">
+            <div class="val" style="color:${v<0?'var(--danger)':'var(--text)'}">${fmtSigned(v)}</div>
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  });
+
+  // CONTA section
+  html += `<div class="section-label"><span class="badge badge-conta">CONTA FIXA</span></div>`;
+  html += '<div class="card" style="margin:0 16px 12px">';
+  CONTA_FIXA.forEach(c => {
+    html += `
+      <div class="item-row">
+        <div class="item-left">
+          <div class="name">${c.nome}</div>
+          <div class="meta"><span style="color:var(--muted)">${c.cat}</span>${c.variavel?` <span class="tag tag-rec">Variável</span>`:''}</div>
+        </div>
+        <div class="item-right">
+          <div class="val">${fmt(c.valor)}</div>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+
+  container.innerHTML = html || '<div class="empty-state"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/></svg><p>Sem lançamentos neste mês</p></div>';
+}
+
+function renderConta() {
+  const total = contaTotal();
+  document.getElementById('conta-total-val').textContent = fmt(total);
+  const container = document.getElementById('conta-items');
+  container.innerHTML = CONTA_FIXA.map(c=>`
+    <div class="item-row">
+      <div class="item-left">
+        <div class="name">${c.nome} ${c.variavel?'<span class="tag tag-rec" style="margin-left:4px">Variável</span>':''}</div>
+        <div class="meta"><span style="color:var(--muted)">${c.cat}</span></div>
+      </div>
+      <div class="item-right">
+        <div class="val">${fmt(c.valor)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════════════════
+// FORM
+// ═══════════════════════════════════════════
+function buildMesSelect() {
+  const sel = document.getElementById('f-mes');
+  sel.innerHTML = MONTHS.map((m,i)=>`<option value="${m}" ${i===currentMonth?'selected':''}>${m}</option>`).join('');
+}
+
+document.querySelectorAll('.tipo-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tipo-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const show = btn.dataset.tipo === 'parcelado';
+    document.getElementById('parc-fields').classList.toggle('show', show);
+  });
+});
+
+document.getElementById('btn-salvar').addEventListener('click', () => {
+  const cartao = document.getElementById('f-cartao').value;
+  const estab  = document.getElementById('f-estab').value.trim();
+  const cat    = document.getElementById('f-cat').value;
+  const tipo   = document.querySelector('.tipo-btn.active').dataset.tipo;
+  const valor  = parseFloat(document.getElementById('f-valor').value);
+  const mes    = document.getElementById('f-mes').value;
+
+  if (!estab || isNaN(valor)) {
+    alert('Preencha o estabelecimento e o valor.');
+    return;
+  }
+
+  const newItem = {
+    id: 'u' + Date.now(),
+    cartao, estab, cat, tipo, valor,
+    mesInicio: mes,
+  };
+
+  if (tipo === 'parcelado') {
+    const pa = parseInt(document.getElementById('f-parc-atual').value);
+    const pt = parseInt(document.getElementById('f-parc-total').value);
+    if (!pa || !pt) { alert('Informe as parcelas.'); return; }
+    newItem.parcAtual = pa;
+    newItem.parcTotal = pt;
+  }
+  if (tipo === 'recorrente') {
+    newItem.mesFim = 'Dez/2026';
+  }
+
+  items.push(newItem);
+  saveItems(items);
+
+  // Reset form
+  document.getElementById('f-estab').value = '';
+  document.getElementById('f-valor').value = '';
+  document.getElementById('f-parc-atual').value = '';
+  document.getElementById('f-parc-total').value = '';
+
+  showToast();
+  renderResumo();
+  renderExtrato();
+});
+
+function showToast() {
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function goPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='novo') buildMesSelect();
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+renderMonthSelectors();
+renderResumo();
+renderExtrato();
+renderConta();
+</script>
+</body>
+</html>
