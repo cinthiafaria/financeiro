@@ -119,6 +119,8 @@
   .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
 
   .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .btn-del { background: none; border: none; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 8px; transition: color .2s, background .2s; flex-shrink: 0; }
+  .btn-del:active { color: var(--danger); background: rgba(224,107,107,.1); }
   .empty-state svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: .3; }
 
   select option { background: #18181f; }
@@ -483,14 +485,16 @@ function renderExtrato() {
         : item.tipo==='recorrente'
         ? `<span class="tag tag-rec">Recorrente</span>`
         : `<span class="tag tag-avista">À vista</span>`;
+      const canDel = item.id && item.id.startsWith('u');
       html += `
         <div class="item-row">
           <div class="item-left">
             <div class="name">${item.estab}</div>
             <div class="meta">${tipoTag} <span style="color:var(--muted)">${item.cat}</span></div>
           </div>
-          <div class="item-right">
+          <div class="item-right" style="display:flex;align-items:center;gap:8px">
             <div class="val" style="color:${v<0?'var(--danger)':'var(--text)'}">${fmtSigned(v)}</div>
+            ${canDel ? `<button class="btn-del" onclick="deleteItem('${item.id}')">✕</button>` : ''}
           </div>
         </div>`;
     });
@@ -526,8 +530,9 @@ function renderExtrato() {
           <div class="name">${item.estab}</div>
           <div class="meta">${tipoTag} <span style="color:var(--muted)">${item.cat}</span></div>
         </div>
-        <div class="item-right">
+        <div class="item-right" style="display:flex;align-items:center;gap:8px">
           <div class="val">${fmtSigned(v)}</div>
+          <button class="btn-del" onclick="deleteItem('${item.id}')">✕</button>
         </div>
       </div>`;
   });
@@ -629,6 +634,17 @@ function goPage(name, btn) {
   document.getElementById('page-'+name).classList.add('active');
   btn.classList.add('active');
   if (name==='novo') buildMesSelect();
+}
+
+// ═══════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════
+function deleteItem(id) {
+  if (!confirm('Excluir este lançamento?')) return;
+  items = items.filter(i => i.id !== id);
+  saveItems(items);
+  renderResumo();
+  renderExtrato();
 }
 
 // ═══════════════════════════════════════════
